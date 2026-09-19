@@ -2,7 +2,6 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { LoginForm } from '@/components/login-form';
 import { createFirstAdmin } from '@/lib/actions';
 
 export default async function LoginPage() {
@@ -37,7 +36,11 @@ export default async function LoginPage() {
           ) : (
             <>
               <h2>Login</h2>
-              <LoginForm />
+              <form action="/api/auth/callback/credentials" method="post" className="form-grid">
+                <div className="field"><label>Email</label><input type="email" name="email" required /></div>
+                <div className="field"><label>Password</label><input type="password" name="password" required /></div>
+                <button type="submit">Login</button>
+              </form>
             </>
           )}
         </div>
@@ -45,3 +48,4 @@ export default async function LoginPage() {
     </div>
   );
 }
+

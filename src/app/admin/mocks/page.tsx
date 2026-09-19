@@ -1,21 +1,24 @@
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { saveSubject, deleteSubject } from '@/lib/actions';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { TopNav } from '@/components/top-nav';
-import { redirect } from 'next/navigation';
 
 export default async function SubjectsPage({ searchParams }: { searchParams?: { editId?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any).role !== 'ADMIN') redirect('/dashboard');
 
-  const editId = searchParams?.editId || null;
+  const editId = searchParams?.editId;
   const editSubject = editId ? await prisma.subject.findUnique({ where: { id: editId } }) : null;
   const subjects = await prisma.subject.findMany({ orderBy: { name: 'asc' } });
 
   return (
     <div className="app-shell">
-      <TopNav role="ADMIN" />
+      <div className="topbar no-print">
+        <div className="brand"><div className="brand-mark">P</div><span>Paradise Hills School</span></div>
+        <div className="row"><a href="/dashboard">Dashboard</a><a href="/admin/students">Students</a><a href="/admin/teachers">Teachers</a><a href="/admin/mocks">Mocks</a></div>
+      </div>
+
       <div className="card" style={{ padding: 20 }}>
         <h2>{editSubject ? 'Edit subject' : 'Create subject'}</h2>
         <form action={async (formData: FormData) => {
@@ -25,7 +28,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams?: { 
             code: (formData.get('code') || '').toString(),
             name: (formData.get('name') || '').toString(),
             type: ((formData.get('type') || 'CORE') as 'CORE' | 'ELECTIVE'),
-            active: (formData.get('active') === 'on'),
+            active: formData.get('active') === 'on',
           });
         }} className="form-grid">
           <div className="field"><label>Code</label><input name="code" defaultValue={editSubject?.code || ''} required /></div>
@@ -37,8 +40,13 @@ export default async function SubjectsPage({ searchParams }: { searchParams?: { 
               <option value="ELECTIVE">Elective</option>
             </select>
           </div>
-          <div className="field"><label>Active</label><input type="checkbox" name="active" defaultChecked={editSubject ? editSubject.active : true} /></div>
-          <div style={{ display: 'flex', alignItems: 'end' }}><button type="submit">{editSubject ? 'Update subject' : 'Create subject'}</button></div>
+          <div className="field">
+            <label>Active</label>
+            <input type="checkbox" name="active" defaultChecked={editSubject ? editSubject.active : true} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'end' }}>
+            <button type="submit">{editSubject ? 'Save changes' : 'Create subject'}</button>
+          </div>
         </form>
       </div>
 

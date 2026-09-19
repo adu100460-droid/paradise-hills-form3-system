@@ -1,52 +1,77 @@
-import { searchEntities } from '@/lib/actions';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { TopNav } from '@/components/top-nav';
 import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { saveMarks } from '@/lib/actions';
 
-export default async function SearchPage({ searchParams }: { searchParams?: { q?: string } }) {
+export default async function TeacherMarksPage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect('/login');
+  if (!session || (session.user as any).role !== 'TEACHER') redirect('/dashboard');
 
-  const q = searchParams?.q || '';
-  const results = q ? await searchEntities(q) : { students: [], teachers: [], subjects: [], mocks: [] };
+  const user = await prisma.user.findUnique({ where: { email: (session.user as any).email }, include: { teacher: true } });
+  if (!user?.teacher) redirect('/dashboard');
+
+  const assignments = await prisma.teacherSubject.findMany({
+    where: { teacherId: user.teacher.id },
+    include: { subject: true },
+  });
+  const subjects = assignments.map((item) => item.subject);
+  const mock = await prisma.mockExam.findFirst({ orderBy: { createdAt: 'desc' } });
+  const students = await prisma.student.findMany({ orderBy: { fullName: 'asc' } });
 
   return (
     <div className="app-shell">
-      <TopNav role={(session.user as any).role || 'ADMIN'} />
-      <div className="card" style={{ padding: 20 }}>
-        <h2>Global search</h2>
-        <form action="/search" method="get" className="row" style={{ marginBottom: 20 }}>
-          <input name="q" defaultValue={q} placeholder="Search students, teachers, subjects and mocks" style={{ maxWidth: 500 }} />
-          <button type="submit">Search</button>
-        </form>
+      <div className="topbar no-print">
+        <div className="brand"><div className="brand-mark">P</div><span>Paradise Hills School</span></div>
+        <div className="row"><a href="/dashboard">Dashboard</a><a href="/teacher/marks">Marks</a></div>
+      </div>
 
-        <div className="grid">
-          <div>
-            <h3>Students</h3>
-            <ul>
-              {results.students.map((student) => <li key={student.id}>{student.fullName} · {student.phsIndex}</li>)}
-            </ul>
-          </div>
-          <div>
-            <h3>Teachers</h3>
-            <ul>
-              {results.teachers.map((teacher) => <li key={teacher.id}>{teacher.fullName} · {teacher.email}</li>)}
-            </ul>
-          </div>
-          <div>
-            <h3>Subjects</h3>
-            <ul>
-              {results.subjects.map((subject) => <li key={subject.id}>{subject.name} · {subject.code}</li>)}
-            </ul>
-          </div>
-          <div>
-            <h3>Mocks</h3>
-            <ul>
-              {results.mocks.map((mock) => <li key={mock.id}>{mock.name} · {mock.academicYear}</li>)}
-            </ul>
-          </div>
-        </div>
+      <div className="card" style={{ padding: 20 }}>
+        <h2>Marks entry</h2>
+        {mock ? (
+          <>
+            <p>Current mock: <strong>{mock.name}</strong> — {mock.status}</p>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  {subjects.map((subject) => <th key={subject.id}>{subject.name}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((student) => (
+                  <tr key={student.id}>
+                    <td>{student.fullName}</td>
+                    {subjects.map((subject) => {
+                      const mark = (mock ? prisma.markEntry.findUnique({
+                        where: { studentId_subjectId_mockId: { studentId: student.id, subjectId: subject.id, mockId: mock.id } },
+                      }) : null);
+
+                      return (
+                        <td key={`${student.id}-${subject.id}`}>
+                          <form action={async (formData: FormData) => {
+                            'use server';
+                            await saveMarks({
+                              mockId: mock.id,
+                              subjectId: subject.id,
+                              studentId: student.id,
+                              rawScore: (formData.get('rawScore') || '').toString(),
+                              isAbsent: formData.get('isAbsent') === 'on',
+                            });
+                          }}>
+                            <input type="number" min={0} max={100} name="rawScore" defaultValue={''} style={{ width: 90 }} />
+                            <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" name="isAbsent" /> Absent</label>
+                            <button type="submit" style={{ marginTop: 8 }}>Save</button>
+                          </form>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : <p>No mock exists yet. Create one from admin area.</p>}
       </div>
     </div>
   );

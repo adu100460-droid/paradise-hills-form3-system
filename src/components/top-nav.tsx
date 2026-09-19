@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
+import { signOut } from 'next-auth/react';
 
 export function TopNav({ role }: { role: string }) {
-  const links = {
+  const links: Record<string, Array<[string, string]>> = {
     ADMIN: [
       ['Dashboard', '/dashboard'],
       ['Students', '/admin/students'],
@@ -23,7 +24,7 @@ export function TopNav({ role }: { role: string }) {
       ['Results', '/student/results'],
       ['Search', '/search'],
     ],
-  } as Record<string, Array<[string, string]>>;
+  };
 
   return (
     <div className="topbar no-print">
@@ -33,10 +34,11 @@ export function TopNav({ role }: { role: string }) {
       </div>
 
       <nav className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-        {links[role]?.map(([label, href]) => (
+        {(links[role] || []).map(([label, href]) => (
           <Link key={href} href={href}>{label}</Link>
         ))}
         <ThemeToggle />
+        <button type="button" className="secondary" onClick={() => signOut({ callbackUrl: '/login' })}>Logout</button>
       </nav>
     </div>
   );

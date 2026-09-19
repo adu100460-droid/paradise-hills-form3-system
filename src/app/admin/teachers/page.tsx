@@ -1,21 +1,24 @@
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { saveStudent, deleteStudent } from '@/lib/actions';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { TopNav } from '@/components/top-nav';
-import { redirect } from 'next/navigation';
 
 export default async function StudentsPage({ searchParams }: { searchParams?: { editId?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any).role !== 'ADMIN') redirect('/dashboard');
 
-  const editId = searchParams?.editId || null;
+  const editId = searchParams?.editId;
   const editStudent = editId ? await prisma.student.findUnique({ where: { id: editId }, include: { user: true } }) : null;
   const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
 
   return (
     <div className="app-shell">
-      <TopNav role="ADMIN" />
+      <div className="topbar no-print">
+        <div className="brand"><div className="brand-mark">P</div><span>Paradise Hills School</span></div>
+        <div className="row"><a href="/dashboard">Dashboard</a><a href="/admin/students">Students</a><a href="/admin/teachers">Teachers</a><a href="/admin/mocks">Mocks</a></div>
+      </div>
+
       <div className="card" style={{ padding: 20 }}>
         <h2>{editStudent ? 'Edit student' : 'Create student'}</h2>
         <form action={async (formData: FormData) => {
@@ -36,10 +39,10 @@ export default async function StudentsPage({ searchParams }: { searchParams?: { 
           <div className="field"><label>Password</label><input type="password" name="password" placeholder={editStudent ? 'Leave blank to keep current' : 'Set initial password'} /></div>
           <div className="field"><label>Class</label><input name="className" defaultValue={editStudent?.className || ''} /></div>
           <div className="field"><label>Stream</label><input name="stream" defaultValue={editStudent?.stream || ''} /></div>
-          <div className="field"><label>Cohort</label><input name="cohort" defaultValue={editStudent?.academicCohort || '2026/2027'} /></div>
+          <div className="field"><label>Academic cohort</label><input name="cohort" defaultValue={editStudent?.academicCohort || '2026/2027'} /></div>
           <div className="field"><label>Photo URL</label><input name="photoUrl" defaultValue={editStudent?.photoUrl || ''} /></div>
           <div style={{ display: 'flex', alignItems: 'end' }}>
-            <button type="submit">{editStudent ? 'Update student' : 'Create student'}</button>
+            <button type="submit">{editStudent ? 'Save changes' : 'Create student'}</button>
           </div>
         </form>
       </div>
@@ -47,9 +50,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: { 
       <div className="card" style={{ padding: 20, marginTop: 20 }}>
         <h3>Students</h3>
         <table className="table">
-          <thead>
-            <tr><th>Name</th><th>PHS Index</th><th>Class</th><th>Cohort</th><th>Actions</th></tr>
-          </thead>
+          <thead><tr><th>Name</th><th>PHS Index</th><th>Class</th><th>Cohort</th><th>Actions</th></tr></thead>
           <tbody>
             {students.map((student) => (
               <tr key={student.id}>

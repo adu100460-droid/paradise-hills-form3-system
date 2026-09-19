@@ -1,21 +1,24 @@
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { saveMock, finalizeMock, reopenMock, deleteMock } from '@/lib/actions';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { TopNav } from '@/components/top-nav';
-import { redirect } from 'next/navigation';
 
 export default async function MocksPage({ searchParams }: { searchParams?: { editId?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any).role !== 'ADMIN') redirect('/dashboard');
 
-  const editId = searchParams?.editId || null;
+  const editId = searchParams?.editId;
   const editMock = editId ? await prisma.mockExam.findUnique({ where: { id: editId } }) : null;
   const mocks = await prisma.mockExam.findMany({ orderBy: { createdAt: 'desc' } });
 
   return (
     <div className="app-shell">
-      <TopNav role="ADMIN" />
+      <div className="topbar no-print">
+        <div className="brand"><div className="brand-mark">P</div><span>Paradise Hills School</span></div>
+        <div className="row"><a href="/dashboard">Dashboard</a><a href="/admin/students">Students</a><a href="/admin/teachers">Teachers</a><a href="/admin/mocks">Mocks</a></div>
+      </div>
+
       <div className="card" style={{ padding: 20 }}>
         <h2>{editMock ? 'Edit mock' : 'Create mock'}</h2>
         <form action={async (formData: FormData) => {
@@ -37,7 +40,9 @@ export default async function MocksPage({ searchParams }: { searchParams?: { edi
               <option value="FINALIZED">Finalized</option>
             </select>
           </div>
-          <div style={{ display: 'flex', alignItems: 'end' }}><button type="submit">{editMock ? 'Update mock' : 'Create mock'}</button></div>
+          <div style={{ display: 'flex', alignItems: 'end' }}>
+            <button type="submit">{editMock ? 'Save changes' : 'Create mock'}</button>
+          </div>
         </form>
       </div>
 
