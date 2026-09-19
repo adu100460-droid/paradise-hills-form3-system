@@ -1,0 +1,82 @@
+export type GradeRule = {
+  min: number;
+  max: number;
+  grade: number;
+  label: string;
+};
+
+export const DEFAULT_GRADE_RULES: GradeRule[] = [
+  { min: 90, max: 100, grade: 1, label: 'Excellent' },
+  { min: 80, max: 89, grade: 2, label: 'Very Good' },
+  { min: 70, max: 79, grade: 3, label: 'Good' },
+  { min: 60, max: 69, grade: 4, label: 'Credit' },
+  { min: 55, max: 59, grade: 5, label: 'Pass' },
+  { min: 50, max: 54, grade: 6, label: 'Fair' },
+  { min: 40, max: 49, grade: 7, label: 'Weak' },
+  { min: 35, max: 39, grade: 8, label: 'Very Weak' },
+  { min: 0, max: 34, grade: 9, label: 'Fail' },
+];
+
+export function computeGrade(rawScore: number | null | undefined): number {
+  if (rawScore === null || rawScore === undefined || rawScore === 0) return 9;
+  if (rawScore === 0) return 9;
+  const normalized = Number(rawScore);
+  for (const rule of DEFAULT_GRADE_RULES) {
+    if (normalized >= rule.min && normalized <= rule.max) return rule.grade;
+  }
+  return 9;
+}
+
+export function gradeToRemark(grade: number | null | undefined): string {
+  if (!grade) return 'Absent / Not Applicable';
+  switch (grade) {
+    case 1: return 'Excellent';
+    case 2: return 'Very Good';
+    case 3: return 'Good';
+    case 4: return 'Credit';
+    case 5: return 'Pass';
+    case 6: return 'Fair';
+    case 7: return 'Weak';
+    case 8: return 'Very Weak';
+    default: return 'Fail';
+  }
+}
+
+export function normalizeGradeRules(value: string | null | undefined): GradeRule[] {
+  if (!value) return DEFAULT_GRADE_RULES;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((item: any) => ({
+        min: Number(item.min),
+        max: Number(item.max),
+        grade: Number(item.grade),
+        label: String(item.label || 'Grade'),
+      }));
+    }
+  } catch {}
+  return DEFAULT_GRADE_RULES;
+}
+
+export function computeAggregate6(marks: Array<{ rawScore: number | null; grade: number | null; type: 'CORE' | 'ELECTIVE'; name: string }>) {
+  const core = marks.filter((m) => m.type === 'CORE');
+  const electives = marks.filter((m) => m.type === 'ELECTIVE');
+
+  const selectedElectives = [...electives]
+    .sort((a, b) => {
+      const gradeCompare = (a.grade ?? 9) - (b.grade ?? 9);
+      if (gradeCompare !== 0) return gradeCompare;
+      return (b.rawScore ?? 0) - (a.rawScore ?? 0);
+    })
+    .slice(0, 2);
+
+  const coreGradeSum = core.reduce((sum, item) => sum + (item.grade ?? 9), 0);
+  const electiveGradeSum = selectedElectives.reduce((sum, item) => sum + (item.grade ?? 9), 0);
+  const aggregate = coreGradeSum + electiveGradeSum;
+
+  const selectedRawScore =
+    core.reduce((sum, item) => sum + (item.rawScore ?? 0), 0) +
+    selectedElectives.reduce((sum, item) => sum + (item.rawScore ?? 0), 0);
+
+  return { aggregate, selectedRawScore, selectedElectives };
+}
